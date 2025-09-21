@@ -1,0 +1,103 @@
+/* style.css - used for all pages */
+
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f8ff;
+    padding: 50px;
+    text-align: center;
+}
+
+h2, h3 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+form {
+    background: #fff;
+    padding: 30px;
+    max-width: 1000px; /* wider for tables */
+    margin: 20px auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+select, input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+/* Table style */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+table th, table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+table th {
+    background-color: #4CAF50;
+    color: #fff;
+}
+
+table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+table tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Checkbox style */
+td input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+/* Buttons and links */
+button, input[type="submit"] {
+    padding: 12px;
+    background-color: #4CAF50;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+button:hover, input[type="submit"]:hover {
+    background-color: #45a049;
+}
+
+a {
+    display: inline-block;
+    padding: 6px 12px;
+    background-color: #ff5722;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background 0.3s ease;
+}
+
+a:hover {
+    background-color: #e64a19;
+}
+
+p {
+    color: #333;
+    font-size: 16px;
+}
