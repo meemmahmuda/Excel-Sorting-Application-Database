@@ -7,7 +7,7 @@ if(!isset($_SESSION['user_id'])){
 
 require 'db.php';
 
-// Handle AJAX "See More"
+// AJAX: Load more files
 if(isset($_GET['offset'])){
     $offset = (int)$_GET['offset'];
     $limit = 5;
@@ -17,127 +17,105 @@ if(isset($_GET['offset'])){
 
     foreach($files as $f){
         echo "<tr>
-            <td><input type='checkbox' name='files[]' value='".htmlspecialchars($f['filename'])."'></td>
-            <td>".htmlspecialchars($f['filename'])."</td>
-            <td>".htmlspecialchars($f['type'])."</td>
-            <td>".htmlspecialchars($f['created_at'])."</td>
-            <td><a href='?delete=".urlencode($f['filename'])."' onclick='return confirm(\"Delete this file?\")'>Delete</a></td>
+            <td><input type='checkbox' name='files[]' value='".$f['filename']."'></td>
+            <td>".$f['filename']."</td>
+            <td>".$f['type']."</td>
+            <td>".$f['created_at']."</td>
+            <td><a href='?delete=".$f['filename']."' onclick='return confirm(\"Delete this file?\")'>Delete</a></td>
         </tr>";
     }
-    exit; // stop further output
+    exit;
 }
 
 // Delete file
-if(!empty($_GET['delete'])){
+if(isset($_GET['delete'])){
     $stmt = $pdo->prepare("DELETE FROM excel_files WHERE filename=?");
     $stmt->execute([$_GET['delete']]);
     header("Location: ".$_SERVER['PHP_SELF']);
     exit;
 }
 
-// Handle file download
-if(!empty($_POST['files'])){
-    $f = $_POST['files'];
+// Download files
+if(isset($_POST['files'])){
+    $files = $_POST['files'];
 
-    // SINGLE FILE DOWNLOAD
-    if(count($f) === 1){
-        $row = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=?");
-        $row->execute([$f[0]]);
-        $r = $row->fetch(PDO::FETCH_ASSOC);
+    if(count($files) == 1){
+        // Fetch the latest uploaded file with that name
+        $stmt = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=? ORDER BY id DESC LIMIT 1");
+        $stmt->execute([$files[0]]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if($r){
-            $ext = strtolower(pathinfo($r['filename'], PATHINFO_EXTENSION));
-
+        if($row){
+            $ext = strtolower(pathinfo($row['filename'], PATHINFO_EXTENSION));
             header('Content-Description: File Transfer');
-            header('Content-Type: '.($ext === 'csv'
-                ? 'text/csv'
-                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
-            header('Content-Disposition: attachment; filename="'.$r['filename'].'"');
-            header('Content-Transfer-Encoding: binary');
-            header('Content-Length: ' . strlen($r['file_content']));
-            ob_clean();
-            flush();
-            echo $r['file_content'];
+            header('Content-Type: '.($ext === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+            header('Content-Disposition: attachment; filename="'.$row['filename'].'"');
+            header('Content-Length: '.strlen($row['file_content']));
+            echo $row['file_content'];
             exit;
         }
-    }
-    // MULTIPLE FILES (ZIP)
-    else {
+    } else {
+        // Multiple files: create ZIP
         $zip = new ZipArchive();
         $zipName = 'files_'.time().'.zip';
-        $tmp = sys_get_temp_dir().'/'.$zipName;
+        $tmpFile = sys_get_temp_dir().'/'.$zipName;
 
-        if($zip->open($tmp, ZipArchive::CREATE) === TRUE){
-            $added = []; // track duplicates
-
-            foreach($f as $fn){
-                $row = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=?");
-                $row->execute([$fn]);
-                $r = $row->fetch(PDO::FETCH_ASSOC);
+        if($zip->open($tmpFile, ZipArchive::CREATE)){
+            $added = [];
+            foreach($files as $f){
+                // Fetch the latest uploaded file for each name
+                $stmt = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=? ORDER BY id DESC LIMIT 1");
+                $stmt->execute([$f]);
+                $r = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 if($r){
                     $filename = $r['filename'];
-
-                    // Handle duplicate filenames in zip
                     if(isset($added[$filename])){
                         $added[$filename]++;
                         $ext = pathinfo($filename, PATHINFO_EXTENSION);
                         $nameOnly = pathinfo($filename, PATHINFO_FILENAME);
-                        $filename = $nameOnly . '_' . $added[$r['filename']] . '.' . $ext;
+                        $filename = $nameOnly . '_' . $added[$filename] . '.' . $ext;
                     } else {
                         $added[$filename] = 0;
                     }
-
                     $zip->addFromString($filename, $r['file_content']);
                 }
             }
-
             $zip->close();
 
             header('Content-Description: File Transfer');
             header('Content-Type: application/zip');
             header('Content-Disposition: attachment; filename="'.$zipName.'"');
-            header('Content-Length: ' . filesize($tmp));
-            ob_clean();
-            flush();
-            readfile($tmp);
-            unlink($tmp);
+            header('Content-Length: '.filesize($tmpFile));
+            readfile($tmpFile);
+            unlink($tmpFile);
             exit;
         }
     }
 }
 
-// Load initial 5 files
-$limit = 5;
-$offset = 0;
-$stmt = $pdo->prepare("SELECT * FROM excel_files ORDER BY id DESC LIMIT $limit OFFSET $offset");
+// Load first 5 files
+$stmt = $pdo->prepare("SELECT * FROM excel_files ORDER BY id DESC LIMIT 5");
 $stmt->execute();
 $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 include 'header.php';
 ?>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Download Files</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
 <h2>All Files</h2>
 
 <form method="post" id="fileForm">
 <table id="fileTable">
-<tr><th>Select</th><th>Filename</th><th>Type</th><th>Uploaded At</th><th>Delete</th></tr>
+<tr>
+<th>Select</th><th>Filename</th><th>Type</th><th>Uploaded At</th><th>Delete</th>
+</tr>
 <?php foreach($files as $f): ?>
 <tr>
-<td><input type="checkbox" name="files[]" value="<?= htmlspecialchars($f['filename']) ?>"></td>
-<td><?= htmlspecialchars($f['filename']) ?></td>
-<td><?= htmlspecialchars($f['type']) ?></td>
-<td><?= htmlspecialchars($f['created_at']) ?></td>
-<td><a href="?delete=<?= urlencode($f['filename']) ?>" onclick="return confirm('Delete this file?')">Delete</a></td>
+<td><input type="checkbox" name="files[]" value="<?= $f['filename'] ?>"></td>
+<td><?= $f['filename'] ?></td>
+<td><?= $f['type'] ?></td>
+<td><?= $f['created_at'] ?></td>
+<td><a href="?delete=<?= $f['filename'] ?>" onclick="return confirm('Delete this file?')">Delete</a></td>
 </tr>
 <?php endforeach; ?>
 </table>
@@ -148,24 +126,19 @@ include 'header.php';
 </form>
 
 <script>
-let offset = 5; // already loaded 5
+let offset = 5;
 document.getElementById('seeMoreBtn').addEventListener('click', function(){
     fetch('?offset='+offset)
-    .then(response => response.text())
+    .then(r => r.text())
     .then(data => {
-        if(data.trim() === '') {
-            // No more files
-            document.getElementById('seeMoreBtn').style.display = 'none';
+        if(data.trim() === ''){
+            this.style.display = 'none';
         } else {
-            const table = document.getElementById('fileTable');
-            table.insertAdjacentHTML('beforeend', data);
+            document.getElementById('fileTable').insertAdjacentHTML('beforeend', data);
             offset += 5;
         }
     });
 });
 </script>
-
-</body>
-</html>
 
 <?php include 'footer.php'; ?>
