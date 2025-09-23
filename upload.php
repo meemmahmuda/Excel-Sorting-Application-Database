@@ -1,45 +1,60 @@
-<?php include 'header.php'; ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Choose Columns to Compare</title>
-    <link rel="stylesheet" href="style.css"> <!-- include single CSS file -->
-</head>
-<body>
-<h2>Select Columns to Compare</h2>
 <?php
+session_start();
+if(!isset($_SESSION['user_id'])) { 
+    header("Location: login.php"); 
+    exit; 
+}
+
 require 'vendor/autoload.php';
 use PhpOffice\PhpSpreadsheet\IOFactory;
 require 'db.php';
+include 'header.php';
 
+// Function to get headers from uploaded file
 function getHeaders($content, $ext){
     $tmp = tempnam(sys_get_temp_dir(),'xls');
     file_put_contents($tmp, $content);
-    $h = $ext=='csv' ? fgetcsv(fopen($tmp,'r')) : IOFactory::load($tmp)->getActiveSheet()->rangeToArray('A1:Z1')[0];
+
+    if($ext === 'csv'){
+        $fp = fopen($tmp,'r');
+        $h = fgetcsv($fp) ?: [];
+        fclose($fp);
+    } else {
+        $h = IOFactory::load($tmp)->getActiveSheet()->rangeToArray('A1:Z1')[0] ?? [];
+    }
+
     unlink($tmp);
     return $h;
 }
+?>
 
-if($_FILES){
+<h2>Select Columns to Compare</h2>
+
+<?php
+if(!empty($_FILES['file1']['tmp_name']) && !empty($_FILES['file2']['tmp_name'])){
     $names = [];
+
     foreach(['file1','file2'] as $f){
         $names[$f] = $_FILES[$f]['name'];
         $content = file_get_contents($_FILES[$f]['tmp_name']);
-        $pdo->prepare("INSERT INTO excel_files(filename,file_content,type) VALUES(?,?,?)")
-            ->execute([$names[$f], $content, 'uploaded']);
+        $stmt = $pdo->prepare("INSERT INTO excel_files(filename,file_content,type) VALUES(?,?,?)");
+        $stmt->execute([$names[$f], $content, 'uploaded']);
     }
 
     echo "<form action='compare.php' method='post'>
-            <input type='hidden' name='f1' value='{$names['file1']}'>
-            <input type='hidden' name='f2' value='{$names['file2']}'>";
+          <input type='hidden' name='f1' value='".htmlspecialchars($names['file1'])."'>
+          <input type='hidden' name='f2' value='".htmlspecialchars($names['file2'])."'>";
 
-    foreach($names as $k=>$n){
-        $content = $pdo->query("SELECT file_content FROM excel_files WHERE filename='$n' AND type='uploaded'")->fetchColumn();
+    foreach($names as $k => $n){
+        $stmt = $pdo->prepare("SELECT file_content FROM excel_files WHERE filename=? AND type='uploaded'");
+        $stmt->execute([$n]);
+        $content = $stmt->fetchColumn();
+
         $h = getHeaders($content, pathinfo($n, PATHINFO_EXTENSION));
         echo "<label>".ucfirst($k)." Column:</label>
-              <select name='".($k=='file1'?'c1':'c2')."'>"
-             .implode('', array_map(fn($v)=>"<option>$v</option>", $h))
-             ."</select>";
+              <select name='".($k==='file1'?'c1':'c2')."'>"
+              .implode('', array_map(fn($v)=>"<option>".htmlspecialchars($v)."</option>", $h))
+              ."</select><br>";
     }
 
     echo "<button>Compare</button></form>";
@@ -47,7 +62,5 @@ if($_FILES){
     echo "<p>Upload two files first.</p>";
 }
 ?>
-</body>
-</html>
 
 <?php include 'footer.php'; ?>

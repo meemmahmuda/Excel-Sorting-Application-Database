@@ -1,4 +1,10 @@
 <?php
+session_start();
+if(!isset($_SESSION['user_id'])){
+    header("Location: login.php");
+    exit;
+}
+
 require 'db.php';
 
 // Handle AJAX "See More"
@@ -32,49 +38,72 @@ if(!empty($_GET['delete'])){
 // Handle file download
 if(!empty($_POST['files'])){
     $f = $_POST['files'];
-    if(count($f)===1){
+
+    // SINGLE FILE DOWNLOAD
+    if(count($f) === 1){
         $row = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=?");
         $row->execute([$f[0]]);
         $r = $row->fetch(PDO::FETCH_ASSOC);
-        $ext = pathinfo($r['filename'], PATHINFO_EXTENSION);
-        header('Content-Type: '.($ext==='csv'?'text/csv':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
-        header('Content-Disposition: attachment; filename="'.$r['filename'].'"');
-        echo $r['file_content']; 
-        exit;
-    } else {
+
+        if($r){
+            $ext = strtolower(pathinfo($r['filename'], PATHINFO_EXTENSION));
+
+            header('Content-Description: File Transfer');
+            header('Content-Type: '.($ext === 'csv'
+                ? 'text/csv'
+                : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'));
+            header('Content-Disposition: attachment; filename="'.$r['filename'].'"');
+            header('Content-Transfer-Encoding: binary');
+            header('Content-Length: ' . strlen($r['file_content']));
+            ob_clean();
+            flush();
+            echo $r['file_content'];
+            exit;
+        }
+    }
+    // MULTIPLE FILES (ZIP)
+    else {
         $zip = new ZipArchive();
         $zipName = 'files_'.time().'.zip';
         $tmp = sys_get_temp_dir().'/'.$zipName;
-        $zip->open($tmp, ZipArchive::CREATE);
 
-        $added = []; // track duplicate filenames
+        if($zip->open($tmp, ZipArchive::CREATE) === TRUE){
+            $added = []; // track duplicates
 
-        foreach($f as $fn){
-            $row = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=?");
-            $row->execute([$fn]);
-            $r = $row->fetch(PDO::FETCH_ASSOC);
+            foreach($f as $fn){
+                $row = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=?");
+                $row->execute([$fn]);
+                $r = $row->fetch(PDO::FETCH_ASSOC);
 
-            $filename = $r['filename'];
+                if($r){
+                    $filename = $r['filename'];
 
-            // handle duplicate filenames
-            if(isset($added[$filename])){
-                $added[$filename]++;
-                $ext = pathinfo($filename, PATHINFO_EXTENSION);
-                $nameOnly = pathinfo($filename, PATHINFO_FILENAME);
-                $filename = $nameOnly . '_' . $added[$r['filename']] . '.' . $ext;
-            } else {
-                $added[$filename] = 0;
+                    // Handle duplicate filenames in zip
+                    if(isset($added[$filename])){
+                        $added[$filename]++;
+                        $ext = pathinfo($filename, PATHINFO_EXTENSION);
+                        $nameOnly = pathinfo($filename, PATHINFO_FILENAME);
+                        $filename = $nameOnly . '_' . $added[$r['filename']] . '.' . $ext;
+                    } else {
+                        $added[$filename] = 0;
+                    }
+
+                    $zip->addFromString($filename, $r['file_content']);
+                }
             }
 
-            $zip->addFromString($filename, $r['file_content']);
-        }
+            $zip->close();
 
-        $zip->close();
-        header('Content-Type: application/zip');
-        header('Content-Disposition: attachment; filename="'.$zipName.'"');
-        readfile($tmp); 
-        unlink($tmp); 
-        exit;
+            header('Content-Description: File Transfer');
+            header('Content-Type: application/zip');
+            header('Content-Disposition: attachment; filename="'.$zipName.'"');
+            header('Content-Length: ' . filesize($tmp));
+            ob_clean();
+            flush();
+            readfile($tmp);
+            unlink($tmp);
+            exit;
+        }
     }
 }
 

@@ -1,0 +1,26 @@
+<?php
+
+try {
+    $pdo = new PDO("mysql:host=localhost;dbname=excel_sort;charset=utf8mb4","root","");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    $username = "admin"; // your desired login username
+    $password = password_hash("admin123", PASSWORD_DEFAULT); // your desired password
+
+    $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+    $stmt->execute([$username, $password]);
+
+    echo "User created successfully!";
+} catch (PDOException $e) {
+    die("Error: " . $e->getMessage());
+}
+
+
+
+
+// CREATE TABLE users (
+//     id INT AUTO_INCREMENT PRIMARY KEY,
+//     username VARCHAR(100) NOT NULL UNIQUE,
+//     password VARCHAR(255) NOT NULL,
+//     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+// );
