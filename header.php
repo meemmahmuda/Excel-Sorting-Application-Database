@@ -1,5 +1,4 @@
 <?php
-// Start session in every page that includes this header
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }

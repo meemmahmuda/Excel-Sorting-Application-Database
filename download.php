@@ -7,7 +7,6 @@ if(!isset($_SESSION['user_id'])){
 
 require 'db.php';
 
-// AJAX: Load more files
 if(isset($_GET['offset'])){
     $offset = (int)$_GET['offset'];
     $limit = 5;
@@ -27,7 +26,6 @@ if(isset($_GET['offset'])){
     exit;
 }
 
-// Delete file
 if(isset($_GET['delete'])){
     $stmt = $pdo->prepare("DELETE FROM excel_files WHERE filename=?");
     $stmt->execute([$_GET['delete']]);
@@ -35,12 +33,10 @@ if(isset($_GET['delete'])){
     exit;
 }
 
-// Download files
 if(isset($_POST['files'])){
     $files = $_POST['files'];
 
     if(count($files) == 1){
-        // Fetch the latest uploaded file with that name
         $stmt = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=? ORDER BY id DESC LIMIT 1");
         $stmt->execute([$files[0]]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -55,7 +51,6 @@ if(isset($_POST['files'])){
             exit;
         }
     } else {
-        // Multiple files: create ZIP
         $zip = new ZipArchive();
         $zipName = 'files_'.time().'.zip';
         $tmpFile = sys_get_temp_dir().'/'.$zipName;
@@ -63,7 +58,6 @@ if(isset($_POST['files'])){
         if($zip->open($tmpFile, ZipArchive::CREATE)){
             $added = [];
             foreach($files as $f){
-                // Fetch the latest uploaded file for each name
                 $stmt = $pdo->prepare("SELECT file_content, filename FROM excel_files WHERE filename=? ORDER BY id DESC LIMIT 1");
                 $stmt->execute([$f]);
                 $r = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -94,7 +88,6 @@ if(isset($_POST['files'])){
     }
 }
 
-// Load first 5 files
 $stmt = $pdo->prepare("SELECT * FROM excel_files ORDER BY id DESC LIMIT 5");
 $stmt->execute();
 $files = $stmt->fetchAll(PDO::FETCH_ASSOC);

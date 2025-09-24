@@ -12,7 +12,6 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 require 'db.php';
 include 'header.php';
 
-// Function to load file data
 function loadData($content, $ext) {
     $tmpFile = tempnam(sys_get_temp_dir(), 'xls');
     file_put_contents($tmpFile, $content);
@@ -41,7 +40,6 @@ function loadData($content, $ext) {
     return [$data, $headers];
 }
 
-// Get POST data
 $f1 = $_POST['f1'] ?? '';
 $f2 = $_POST['f2'] ?? '';
 $c1 = $_POST['c1'] ?? '';
@@ -53,7 +51,6 @@ if (!$f1 || !$f2 || !$c1 || !$c2) {
     exit;
 }
 
-// Load latest uploaded files from database
 $stmt = $pdo->prepare("SELECT file_content FROM excel_files WHERE filename=? ORDER BY id DESC LIMIT 1");
 $stmt->execute([$f1]);
 $content1 = $stmt->fetchColumn();
@@ -64,28 +61,23 @@ $content2 = $stmt->fetchColumn();
 list($d1, $h1) = loadData($content1, pathinfo($f1, PATHINFO_EXTENSION));
 list($d2, $h2) = loadData($content2, pathinfo($f2, PATHINFO_EXTENSION));
 
-// Extract column values
 $v1 = array_column($d1, $c1);
 $v2 = array_column($d2, $c2);
 
-// Find unmatched rows
 $out = [];
 
-// File1 not in File2
 foreach ($d1 as $r1) {
     if (!in_array($r1[$c1], $v2)) {
         $out[] = array_merge(array_values($r1), array_fill(0, count($d2[0]) + 2, ''));
     }
 }
 
-// File2 not in File1
 foreach ($d2 as $r2) {
     if (!in_array($r2[$c2], $v1)) {
         $out[] = array_merge(array_fill(0, count($d1[0]) + 2, ''), array_values($r2));
     }
 }
 
-// Create unmatched Excel file
 if ($out) {
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
