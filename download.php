@@ -20,15 +20,17 @@ if(isset($_GET['offset'])){
             <td>".$f['filename']."</td>
             <td>".$f['type']."</td>
             <td>".$f['created_at']."</td>
-            <td><a href='?delete=".$f['filename']."' onclick='return confirm(\"Delete this file?\")'>Delete</a></td>
+            <td><a href='?delete=".$f['id']."' onclick='return confirm(\"Delete this file?\")'>Delete</a></td>
         </tr>";
     }
     exit;
 }
 
 if(isset($_GET['delete'])){
-    $stmt = $pdo->prepare("DELETE FROM excel_files WHERE filename=?");
-    $stmt->execute([$_GET['delete']]);
+   
+    $id = (int)$_GET['delete'];
+    $stmt = $pdo->prepare("DELETE FROM excel_files WHERE id = ?");
+    $stmt->execute([$id]);
     header("Location: ".$_SERVER['PHP_SELF']);
     exit;
 }
@@ -108,7 +110,7 @@ include 'header.php';
 <td><?= $f['filename'] ?></td>
 <td><?= $f['type'] ?></td>
 <td><?= $f['created_at'] ?></td>
-<td><a href="?delete=<?= $f['filename'] ?>" onclick="return confirm('Delete this file?')">Delete</a></td>
+<td><a href="?delete=<?= $f['id'] ?>" onclick="return confirm('Delete this file?')">Delete</a></td>
 </tr>
 <?php endforeach; ?>
 </table>
