@@ -15,7 +15,7 @@ if (session_status() === PHP_SESSION_NONE) {
         <div>
             <h1>Excel Sorting System</h1>
             <nav>
-                <a href="index.php">Upload File</a> |
+                <a href="upload.php">Upload File</a> |
                 <a href="download.php">Download Files</a>
             </nav>
         </div>
